@@ -69,6 +69,7 @@ class JTNNDecoder(nn.Module):
         max_iter = max([len(tr) for tr in traces])
         padding = create_var(torch.zeros(self.hidden_size), False)
         h = {}
+        #print(f"[DEBUG72] h = {h}")
 
         for t in range(max_iter):
             prop_list = []
@@ -77,6 +78,7 @@ class JTNNDecoder(nn.Module):
                 if t < len(plist):
                     prop_list.append(plist[t])
                     batch_list.append(i)
+            #print(f"[DEBUG81] prop_list = {prop_list}")
 
             cur_x = []
             cur_h_nei,cur_o_nei = [],[]
@@ -84,19 +86,30 @@ class JTNNDecoder(nn.Module):
             for node_x,real_y,_ in prop_list:
                 #Neighbors for message passing (target not included)
                 cur_nei = [h[(node_y.idx,node_x.idx)] for node_y in node_x.neighbors if node_y.idx != real_y.idx]
+                #print(f"[DEBUG89] cur_nei = {cur_nei}")
+                if len(cur_nei) > 7:
+                    break
                 pad_len = MAX_NB - len(cur_nei)
+                #print(f"[DEBUG91] pad_len = {pad_len}")
                 cur_h_nei.extend(cur_nei)
                 cur_h_nei.extend([padding] * pad_len)
+                #print(f"[DEBUG94] cur_h_nei = {cur_h_nei}")
 
                 #Neighbors for stop prediction (all neighbors)
                 cur_nei = [h[(node_y.idx,node_x.idx)] for node_y in node_x.neighbors]
+                #print(f"[DEBUG98] cur_nei = {cur_nei}")
+             
                 pad_len = MAX_NB - len(cur_nei)
+                #print(f"[DEBUG100] pad_len = {pad_len}")
                 cur_o_nei.extend(cur_nei)
+                #print(len(cur_nei), end="\t")
                 cur_o_nei.extend([padding] * pad_len)
+                #print(f"[DEBUG103] cur_o_nei = {cur_o_nei}")
 
                 #Current clique embedding
                 cur_x.append(node_x.wid)
-
+            if len(cur_nei) > 7:
+                continue
             #Clique embedding
             cur_x = create_var(torch.LongTensor(cur_x))
             cur_x = self.embedding(cur_x)
@@ -106,6 +119,9 @@ class JTNNDecoder(nn.Module):
             new_h = GRU(cur_x, cur_h_nei, self.W_z, self.W_r, self.U_r, self.W_h)
 
             #Node Aggregate
+            #print()
+            #print(f"[DEBUG119] cur_o_nei len = {len(cur_o_nei)}")
+            #print(f"[DEBUG119] cur_o_nei(stack) shape = {torch.stack(cur_o_nei, dim=0).shape}")
             cur_o_nei = torch.stack(cur_o_nei, dim=0).view(-1,MAX_NB,self.hidden_size)
             cur_o = cur_o_nei.sum(dim=1)
 

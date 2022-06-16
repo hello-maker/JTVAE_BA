@@ -52,13 +52,19 @@ class JTNNEncoder(nn.Module):
                     z = node_z.idx
                     if z == y: continue
                     h_nei.append(h[(z,x)])
+                    if len(h_nei) == MAX_NB:
+                        break
 
                 pad_len = MAX_NB - len(h_nei)
-                h_nei.extend([padding] * pad_len)
+                #print(len(h_nei), end="\t")
+                h_nei.extend([padding] * pad_len)                
                 cur_h_nei.extend(h_nei)
 
             cur_x = create_var(torch.LongTensor(cur_x))
             cur_x = self.embedding(cur_x)
+            #print()
+            #print(f"[DEBUG119] cur_o_nei len = {len(cur_h_nei)}")
+            #print(f"[DEBUG119] cur_o_nei(stack) shape = {torch.stack(cur_h_nei, dim=0).shape}")            
             cur_h_nei = torch.cat(cur_h_nei, dim=0).view(-1,MAX_NB,self.hidden_size)
 
             new_h = GRU(cur_x, cur_h_nei, self.W_z, self.W_r, self.U_r, self.W_h)
